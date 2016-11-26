@@ -3,7 +3,6 @@ from __future__ import print_function
 import httplib2
 import os
 
-
 from apiclient import errors
 from apiclient import http
 
@@ -12,6 +11,8 @@ from apiclient.discovery import build
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
+from apiclient.http import MediaFileUpload
+
 import urllib
 
 try:
@@ -90,102 +91,30 @@ def createService():
 
     return service
 
-   
-
-
-    # ######FILE QUERY#######
-    # #request = service.files().list().execute()
-    
-    # #print(request)
-
-    
-
-
-    # #results = service.files().list(pageSize=10,fields="nextPageToken, files(id, name)").execute()
-    # param = {}
-    # page_token = "nextPageToken"
-    # param['pageToken'] = page_token
-
-
-    # #results = service.files().list(pageSize=10,fields="nextPageToken").execute()
-    # #results = service.files().list(**param).execute()
-
-    # #results = service.files().list("folder").execute()
-
-    # # print ("RESULTS")
-    # # print(results)
-
-
-    # # # print("")
-    # # # ""
-    # # # ""
-    # # # ""
-    # # # print("")
-
-    # # items = results.get('files', [])
-    # # if not items:
-    # #     print('No files found.')
-    # # else:
-    # #     print('Files:')
-    # #     for item in items:
-    # #         print("") 
-    # #         print('{0} ({1})'.format(item['name'], item['id']))
 
 #uploads a file with the specified name. If no file with the matching name is found, create it
 #RETURNS: data about the file that was uploaded
 def uploadFile(filename):
-    service = createService()
+    credentials = get_credentials()
+    http = credentials.authorize(httplib2.Http())
 
-    ####FILE UPLOAD ######
-    #First create the metadata (name)
-    filename = "oceanman.txt"
-    metadata = {"name": filename}
-    request = service.files().create(body=metadata, media_body=fileName).execute()
+    drive = discovery.build('drive', 'v3', http=http)
+    
+    file_metadata = {}
+    file_metadata['name'] = filename
+    file_metadata['mimeType'] = "text/plain"
+    #     'name' : 'myReport',
+    #     'mimeType' : 'text/plain'
+    # }  
+    
+    media = MediaFileUpload('myReport.csv',mimetype='text/plain',resumable=True)
+    file = drive.files().create(body=file_metadata,media_body=media,fields='id').execute()
+    print('File ID:' + file.get('id'))
+
 
 #downloads a file with the specifed filename
 #RETURNS: data about the file, or file not found if no such file exists
-
 def downloadFile(filename):
-
-    print("Entering downloadFile()")
-    service = createService()
-
-    results = service.files().list(pageSize =10).execute()
-    #print(results)
-    items = results.get('files', [])
-
-    print("Items retrieved")
-    #print(items)
-
-    local_fd = open("test2.docx", "wb")
-
-    for item in items:
-        print(item['name'] + " " + item['id'])
-        if item['name'] == filename:
-            print("File " + item['name'] + " found. Downloading...")
-            request = service.files().get_media(fileId=item['id'])
-            media_request = http.MediaIoBaseDownload(local_fd, request)
-            print (media_request)
-
-            # while True:
-            #     try:
-            #         download_progress, done = media_request.next_chunk()
-            #     except errors.HttpError, error:
-            #         print ('An error occurred: ' + error)
-            #         return
-            #     if download_progress:
-            #         print ('Download Progress: ' + int(download_progress.progress() * 100)
-            #     if done:
-            #         print ('Download Complete')
-            #         return
-
-            #download = service.files().get(fileId=item['id']).execute()
-            #download = service.files().export(fileId=item['id'], mimeType="application/vnd.google-apps.document").execute()
-            #print(download)
-
-    return None
-
-def downloadFile2():
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
 
@@ -193,13 +122,13 @@ def downloadFile2():
     r = drive.files().list().execute()
     files =  r['items']
     for file in files: 
-        if 'downloadUrl' in file.keys():
+        if 'downloadUrl' in file.keys() and file['title'] == filename:
             print(file['title'] +  " : " + file['downloadUrl'])
             response, content = http.request(file['downloadUrl'])
             print(response['status'])
             print(response['content-disposition'])
 
-            f = open('pleasework.txt', 'wb')
+            f = open(filename, 'wb')
             f.write(content)
             f.close()
             return None
@@ -228,8 +157,6 @@ def deleteFile(filename):
     except errors.HttpError, error:
         print ('An error occurred: ')
         print(error)
-    
-  
 
     return None
 
@@ -242,9 +169,6 @@ def listFiles():
     files = results['items']
     for file in files:
         print(file['title'])
-
-
-
     
     ##
     return None
@@ -265,12 +189,11 @@ def findCorrespondingID(filename):
     return None
 
 if __name__ == '__main__':
-    print("WTF")
     #downloadFile("oceanman.txt")
-    #downloadFile2()
+    downloadFile("oceanman.txt")
     #findCorrespondingID("oceanman.txt")
     #deleteFile("oceanman.txt")
     #createService()
-    listFiles()
-    deleteFile("testFileName.txt")
-    print("WTF")
+    #listFiles()
+    #deleteFile("testFileName.txt")
+    #uploadFile("oceanman.txt")
